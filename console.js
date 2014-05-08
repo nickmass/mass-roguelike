@@ -14,9 +14,8 @@ var MassConsole = function(rows, columns) {
     this.Output = {
         Lines: new Array(rows - 1)
     };
-    this.counterX = -1;
-    this.counterY = -1;
-    this.color = {r:255,g:255, b:255};
+
+    this._listeners = {};
 };
 
 MassConsole.prototype.init = function(targetElem) {
@@ -35,8 +34,8 @@ MassConsole.prototype.init = function(targetElem) {
     document.addEventListener('keypress', this.keypress.bind(this));
     document.addEventListener('keydown', this.keydown.bind(this));
     window.requestAnimationFrame(this.renderLoop.bind(this));
+    this.addEventListener('lineEntered', function(line){console.log('LINE: ' + line);});
 }
-
 
 MassConsole.prototype.drawCharacter = function (character, row, column, color, backColor) {
     if(typeof character !== 'string')
@@ -81,25 +80,55 @@ MassConsole.prototype.drawCharacter = function (character, row, column, color, b
     this.BackBuffer.drawImage(this.Characters[charKey], charX, charY);
 };
 
+MassConsole.prototype.clear = function(clearColor) {
+    clearColor = clearColor || {};
+    clearColor.r = clearColor.r || 0;
+    clearColor.g = clearColor.g || 0;
+    clearColor.b = clearColor.b || 0;
+    var clearColorString = this.colorHexString(clearColor);
+    
+    this.BackBuffer.fillStyle = clearColorString;
+    this.BackBuffer.fillRect(0, 0, this.Width, this.Height);
+};
+
+MassConsole.prototype.present = function() {
+    this.Frame++;
+    this.Context.drawImage(this.BackBufferCanvas, 0, 0);
+};
+
 MassConsole.prototype.renderLoop = function() {
+    this.clear();
     for(var i = 0; i < this.Output.Lines.length; i++) {
         for(var j = 0; this.Output.Lines[i] && j < this.Output.Lines[i].length; j++)
             this.drawCharacter(this.Output.Lines[i][j], i, j);
-        for(;j < this.Columns; j++)
-            this.drawCharacter(' ', i, j);
     }
 
     this.drawCharacter('>', this.Rows - 1, 0);
     for(var i = 1; i <= this.Input.Line.length; i++)
         this.drawCharacter(this.Input.Line[i-1], this.Rows - 1, i);
-    for(; i < this.Columns ; i++)
-        this.drawCharacter(' ', this.Rows - 1, i);
     if(((this.Frame / 60) | 0) % 2)
         this.drawCharacter('_', this.Rows -1, this.Input.Cursor + 1);
 
-    this.Frame++;
-    this.Context.drawImage(this.BackBufferCanvas, 0, 0);
+    this.present();
+
     window.requestAnimationFrame(this.renderLoop.bind(this));
+};
+
+MassConsole.prototype.addEventListener = function (eventName, callback) {
+    if(!this._listeners[eventName]) {
+        this._listeners[eventName] = [];
+    }
+
+    this._listeners[eventName].push(callback);
+};
+
+MassConsole.prototype.trigger = function (eventName, eventArg) {
+    if(!this._listeners[eventName])
+        return;
+
+    this._listeners[eventName].forEach(function(listener) {
+        listener(eventArg);
+    });
 };
 
 MassConsole.prototype.keydown = function (event) {
@@ -132,6 +161,7 @@ MassConsole.prototype.keydown = function (event) {
             this.Output.Lines.pop();
             this.Output.Lines.reverse();
             this.Output.Lines.push(this.Input.Line);
+            this.trigger('lineEntered', this.Input.Line);
             this.Input.Line = '';
             this.Input.Cursor = 0;
         break;
@@ -140,9 +170,9 @@ MassConsole.prototype.keydown = function (event) {
 
 MassConsole.prototype.keypress = function (event) {
     if(event.keyCode >= 32 && event.keyCode <= 126) {
+        this.trigger('charEntered', String.fromCharCode(event.keyCode));
         this.Input.Line = this.stringInsertAtIndex(String.fromCharCode(event.keyCode), this.Input.Line, this.Input.Cursor);
         this.Input.Cursor++;
-        console.log(this.Input.Line);
     }
 };
 
