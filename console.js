@@ -7,6 +7,10 @@ var MassConsole = function(rows, columns) {
     this.Height = this.FontHeight * this.Rows;
     this.Characters = {};
     this.Frame = 0;
+    this.Input = {
+        Cursor: 0,
+        Line: ''
+    }
     this.counterX = -1;
     this.counterY = -1;
     this.color = {r:255,g:255, b:255};
@@ -24,7 +28,9 @@ MassConsole.prototype.init = function(targetElem) {
     this.BackBufferCanvas.setAttribute('height', this.Height);
     this.BackBufferCanvas.setAttribute('width', this.Width);
     this.BackBuffer = this.BackBufferCanvas.getContext('2d');
-
+    
+    document.addEventListener('keypress', this.keypress.bind(this));
+    document.addEventListener('keydown', this.keydown.bind(this));
     window.requestAnimationFrame(this.renderLoop.bind(this));
 }
 
@@ -62,7 +68,7 @@ MassConsole.prototype.drawCharacter = function (character, row, column, color, b
         ctxChar.fillRect(0, 0, this.FontWidth, this.FontHeight);
         ctxChar.fillStyle = colorString; 
         ctxChar.font = '8px console';
-        ctxChar.fillText(character, 1, this.FontHeight - 1);
+        ctxChar.fillText(character, 1, this.FontHeight - 2);
         this.Characters[charKey] = cChar;
     }
 
@@ -92,9 +98,65 @@ MassConsole.prototype.renderLoop = function() {
     this.counterX = this.counterX + 1;
     this.drawCharacter(String.fromCharCode(((this.Frame + this.counterX) % 13) + 40), this.counterY, this.counterX, this.color);
     }
+
+    for(var i = 0; i < this.Input.Line.length; i++) {
+        this.drawCharacter(this.Input.Line[i], 0, i);
+    }
+
+    if(((this.Frame / 60) | 0) % 2)
+        this.drawCharacter('_', 0, this.Input.Cursor);
+
     this.Frame++;
     this.Context.drawImage(this.BackBufferCanvas, 0, 0);
     window.requestAnimationFrame(this.renderLoop.bind(this));
+};
+
+MassConsole.prototype.keydown = function (event) {
+    console.log(event.keyCode);
+    switch(event.keyCode)
+    {
+        case 8:
+            if(this.Input.Cursor > 0) {
+                this.Input.Cursor--;
+                this.Input.Line = this.stringRemoveAtIndex(this.Input.Line, this.Input.Cursor);
+            }
+        break;
+        case 46:
+            if(this.Input.Cursor < this.Input.Line.length) {
+                this.Input.Line = this.stringRemoveAtIndex(this.Input.Line, this.Input.Cursor);
+                if(this.Input.Cursor > 0)
+                    this.Input.Cursor--;
+            }
+        break;
+        case 37:
+            if(this.Input.Cursor > 0)
+                this.Input.Cursor--;
+        break;
+        case 39:
+            if(this.Input.Cursor < this.Input.Line.length)
+                this.Input.Cursor++;
+        break;
+    }
+};
+
+MassConsole.prototype.keypress = function (event) {
+    if(event.keyCode >= 32 && event.keyCode <= 126) {
+        this.Input.Line = this.stringInsertAtIndex(String.fromCharCode(event.keyCode), this.Input.Line, this.Input.Cursor);
+        this.Input.Cursor++;
+        console.log(this.Input.Line);
+    }
+};
+
+MassConsole.prototype.stringRemoveAtIndex = function (str, index) {
+    var start = str.substr(0, index);
+    var end = str.substr(index + 1);
+    return start + end;
+};
+
+MassConsole.prototype.stringInsertAtIndex = function (char, str, index) {
+    var start = str.substr(0, index);
+    var end = str.substr(index);
+    return start + char + end;
 };
 
 MassConsole.prototype.colorHexString = function (color) {
