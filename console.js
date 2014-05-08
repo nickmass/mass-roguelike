@@ -10,7 +10,10 @@ var MassConsole = function(rows, columns) {
     this.Input = {
         Cursor: 0,
         Line: ''
-    }
+    };
+    this.Output = {
+        Lines: new Array(rows - 1)
+    };
     this.counterX = -1;
     this.counterY = -1;
     this.color = {r:255,g:255, b:255};
@@ -79,32 +82,20 @@ MassConsole.prototype.drawCharacter = function (character, row, column, color, b
 };
 
 MassConsole.prototype.renderLoop = function() {
-    for(var i = 0; i < this.Rows * this.Columns; i++) {
-    
-    if(this.counterX > this.Columns) {
-         if(this.counterY  > this.Rows)
-            this.counterY = -1;
-        this.counterY = this.counterY + 1;
-        this.counterX = -1;
+    for(var i = 0; i < this.Output.Lines.length; i++) {
+        for(var j = 0; this.Output.Lines[i] && j < this.Output.Lines[i].length; j++)
+            this.drawCharacter(this.Output.Lines[i][j], i, j);
+        for(;j < this.Columns; j++)
+            this.drawCharacter(' ', i, j);
     }
 
-    this.color.g++;
-    this.color.b++;
-    if(this.color.g >= 256) {
-        this.color.g = 0;
-        this.color.b = 0;
-    }
-
-    this.counterX = this.counterX + 1;
-    this.drawCharacter(String.fromCharCode(((this.Frame + this.counterX) % 13) + 40), this.counterY, this.counterX, this.color);
-    }
-
-    for(var i = 0; i < this.Input.Line.length; i++) {
-        this.drawCharacter(this.Input.Line[i], 0, i);
-    }
-
+    this.drawCharacter('>', this.Rows - 1, 0);
+    for(var i = 1; i <= this.Input.Line.length; i++)
+        this.drawCharacter(this.Input.Line[i-1], this.Rows - 1, i);
+    for(; i < this.Columns ; i++)
+        this.drawCharacter(' ', this.Rows - 1, i);
     if(((this.Frame / 60) | 0) % 2)
-        this.drawCharacter('_', 0, this.Input.Cursor);
+        this.drawCharacter('_', this.Rows -1, this.Input.Cursor + 1);
 
     this.Frame++;
     this.Context.drawImage(this.BackBufferCanvas, 0, 0);
@@ -135,6 +126,14 @@ MassConsole.prototype.keydown = function (event) {
         case 39:
             if(this.Input.Cursor < this.Input.Line.length)
                 this.Input.Cursor++;
+        break;
+        case 13:
+            this.Output.Lines.reverse();
+            this.Output.Lines.pop();
+            this.Output.Lines.reverse();
+            this.Output.Lines.push(this.Input.Line);
+            this.Input.Line = '';
+            this.Input.Cursor = 0;
         break;
     }
 };
