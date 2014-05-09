@@ -1,8 +1,8 @@
 var MassConsole = function(rows, columns) {
     this.Rows = rows;
     this.Columns = columns;
-    this.FontWidth = 6;
-    this.FontHeight = 8;
+    this.FontWidth = 7;
+    this.FontHeight = 10;
     this.Width = this.FontWidth * this.Columns;
     this.Height = this.FontHeight * this.Rows;
     this.Characters = {};
@@ -25,7 +25,7 @@ MassConsole.prototype.init = function(targetElem) {
     canvas.setAttribute('width', this.Width);
     elem.appendChild(canvas);
     this.Context = canvas.getContext('2d');
-
+    this.Context.imageSmoothingEnabled = false;
     this.BackBufferCanvas = document.createElement('canvas');
     this.BackBufferCanvas.setAttribute('height', this.Height);
     this.BackBufferCanvas.setAttribute('width', this.Width);
@@ -37,14 +37,14 @@ MassConsole.prototype.init = function(targetElem) {
     this.addEventListener('lineEntered', function(line){console.log('LINE: ' + line);});
 }
 
-MassConsole.prototype.drawCharacter = function (character, row, column, color, backColor) {
+MassConsole.prototype.drawCharacter = function (character, x, y, color, backColor) {
     if(typeof character !== 'string')
         return;
     if(character.length !== 1)
         return;
-    if(row >= this.Rows || row < 0)
+    if(y >= this.Rows || y < 0)
         return;
-    if(column >= this.Column || column < 0)
+    if(x >= this.Column || x < 0)
         return;
     
     backColor = backColor || {};
@@ -69,15 +69,47 @@ MassConsole.prototype.drawCharacter = function (character, row, column, color, b
         ctxChar.fillStyle = backColorString; 
         ctxChar.fillRect(0, 0, this.FontWidth, this.FontHeight);
         ctxChar.fillStyle = colorString; 
-        ctxChar.font = '8px monospace';
-        ctxChar.fillText(character, 1, this.FontHeight - 2);
+        ctxChar.font = '10px monospace';
+        ctxChar.fillText(character, 0, this.FontHeight - 2);
         this.Characters[charKey] = cChar;
     }
 
-    var charX = column * this.FontWidth;
-    var charY = row * this.FontHeight;
+    var charX = x * this.FontWidth;
+    var charY = y * this.FontHeight;
 
     this.BackBuffer.drawImage(this.Characters[charKey], charX, charY);
+};
+
+MassConsole.prototype.drawBox = function(x, y, width, height, color, backcolor) {
+    var cornerChar = '+';
+    var vertChar = '|';
+    var horzChar = '-';
+
+    this.drawCharacter(cornerChar, x, y, color, backcolor);
+    this.drawCharacter(cornerChar, x + width - 1, y, color, backcolor);
+    this.drawCharacter(cornerChar, x, y + height - 1, color, backcolor);
+    this.drawCharacter(cornerChar, x + width - 1, y + height - 1, color, backcolor);
+
+    for(var x1 = 1; x1 < width - 1; x1++) {
+        this.drawCharacter(horzChar, x + x1, y, color, backcolor);
+        this.drawCharacter(horzChar, x + x1, y + height - 1, color, backcolor);
+    }
+
+    for(var y1 = 1; y1 < height - 1; y1++) {
+        this.drawCharacter(vertChar, x, y + y1, color, backcolor);
+        this.drawCharacter(vertChar, x + width - 1, y + y1, color, backcolor);
+    }
+};
+
+MassConsole.prototype.drawRect = function(character, x, y, width, height, fill,  color, backcolor) {
+    for(var x1 = 0; x1 < width; x1++) {
+        for(var y1 = 0; y1 < height; y1++) {
+            if(!fill && y1 != 0 && y1 != height - 1 && x1 != 0 && x1 != width -1)
+                continue;
+            this.drawCharacter(character, x + x1, y + y1, color, backcolor);
+        }
+    }
+   
 };
 
 MassConsole.prototype.clear = function(clearColor) {
@@ -100,14 +132,18 @@ MassConsole.prototype.renderLoop = function() {
     this.clear();
     for(var i = 0; i < this.Output.Lines.length; i++) {
         for(var j = 0; this.Output.Lines[i] && j < this.Output.Lines[i].length; j++)
-            this.drawCharacter(this.Output.Lines[i][j], i, j);
+            this.drawCharacter(this.Output.Lines[i][j], j, i);
     }
+    
+    this.drawRect('#', 5, 2, 4, 4, false);
+    this.drawRect('@', 22, 5, 4, 4, true);
+    this.drawBox(40, 10, 8, 8);
 
-    this.drawCharacter('>', this.Rows - 1, 0);
+    this.drawCharacter('>', 0, this.Rows - 1);
     for(var i = 1; i <= this.Input.Line.length; i++)
-        this.drawCharacter(this.Input.Line[i-1], this.Rows - 1, i);
-    if(((this.Frame / 60) | 0) % 2)
-        this.drawCharacter('_', this.Rows -1, this.Input.Cursor + 1);
+        this.drawCharacter(this.Input.Line[i-1], i, this.Rows - 1);
+    if(((this.Frame / 30) | 0) % 2)
+        this.drawCharacter('_', this.Input.Cursor + 1, this.Rows - 1);
 
     this.present();
 
@@ -135,28 +171,25 @@ MassConsole.prototype.keydown = function (event) {
     console.log(event.keyCode);
     switch(event.keyCode)
     {
-        case 8:
+        case 8: //Backspace
             if(this.Input.Cursor > 0) {
                 this.Input.Cursor--;
                 this.Input.Line = this.stringRemoveAtIndex(this.Input.Line, this.Input.Cursor);
             }
         break;
-        case 46:
-            if(this.Input.Cursor < this.Input.Line.length) {
+        case 46: //Delete
+            if(this.Input.Cursor < this.Input.Line.length)
                 this.Input.Line = this.stringRemoveAtIndex(this.Input.Line, this.Input.Cursor);
-                if(this.Input.Cursor > 0)
-                    this.Input.Cursor--;
-            }
         break;
-        case 37:
+        case 37: //Left
             if(this.Input.Cursor > 0)
                 this.Input.Cursor--;
         break;
-        case 39:
+        case 39: //Right
             if(this.Input.Cursor < this.Input.Line.length)
                 this.Input.Cursor++;
         break;
-        case 13:
+        case 13: //Enter
             this.Output.Lines.reverse();
             this.Output.Lines.pop();
             this.Output.Lines.reverse();
