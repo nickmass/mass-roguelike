@@ -61,7 +61,7 @@ MassConsole.prototype.drawCharacter = function (character, row, column, color, b
         ctxChar.fillStyle = backColorString; 
         ctxChar.fillRect(0, 0, this.FontWidth, this.FontHeight);
         ctxChar.fillStyle = colorString; 
-        ctxChar.font = '8px console';
+        ctxChar.font = '8px monospace';
         ctxChar.fillText(character, 1, this.FontHeight - 1);
         this.Characters[charKey] = cChar;
     }
