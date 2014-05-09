@@ -143,7 +143,7 @@ MassConsole.prototype.renderLoop = function() {
     for(var i = 1; i <= this.Input.Line.length; i++)
         this.drawCharacter(this.Input.Line[i-1], i, this.Rows - 1);
     if(((this.Frame / 30) | 0) % 2)
-        this.drawCharacter('_', this.Input.Cursor + 1, this.Rows - 1);
+        this.drawCharacter(' ', this.Input.Cursor + 1, this.Rows - 1, {r:0,g:0,b:0}, {r:255,g:255,b:255});
 
     this.present();
 
